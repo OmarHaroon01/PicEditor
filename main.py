@@ -76,6 +76,8 @@ class App(tk.CTk):
         return img_arr / 255.0
 
     def photocopy_button_clicked(self, threshold):
+        if self.grayscale_image is None:
+            return
         grayscale_arr = self.img2double(np.array(self.grayscale_image))
         threshold /= 255.0
         # threshold = 100.0 / 255.0
@@ -83,12 +85,16 @@ class App(tk.CTk):
         grayscale_arr[grayscale_arr <= threshold] = (grayscale_arr[grayscale_arr <= threshold] *
                                                      (threshold - grayscale_arr[grayscale_arr <= threshold])) / (threshold * threshold)
         grayscale_arr = self.double2img(grayscale_arr)
-        show_img = ImageTk.PhotoImage(Image.fromarray(grayscale_arr))
+        img = Image.fromarray(grayscale_arr)
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 
     def grayscale_button_clicked(self):
-        show_img = ImageTk.PhotoImage(self.grayscale_image)
+        img = self.grayscale_image.copy()
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 
@@ -103,8 +109,9 @@ class App(tk.CTk):
         f_types = [('Jpg Files', '*.jpg')]
         filename = filedialog.askopenfilename(filetypes=f_types)
         self.current_image = Image.open(filename)
-        self.current_image.thumbnail((700, 550))
-        show_img = ImageTk.PhotoImage(self.current_image)
+        img = self.current_image.copy()
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
         rgb_img_data = np.array(self.current_image)
         r, g, b = rgb_img_data[:, :, 0], rgb_img_data[:, :, 1], rgb_img_data[:, :, 2]
         grayscale_arr = 0.2989 * r + 0.5870 * g + 0.1140 * b
