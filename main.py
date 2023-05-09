@@ -7,7 +7,6 @@ import numpy as np
 from PIL import Image, ImageTk
 import numpy
 
-
 class App(tk.CTk):
 
     def __init__(self):
@@ -53,7 +52,9 @@ class App(tk.CTk):
         edge_detection_button = tk.CTkButton(master=left_frame, command=self.button_callback, text="Edge Detection")
         edge_detection_button.grid(row=2, column=0, padx="10px", pady=(15, 0))
 
-        photocopy_button = tk.CTkButton(master=left_frame, command=lambda: self.photocopy_button_clicked(int(self.slider.get())), text="Photocopy")
+        photocopy_button = tk.CTkButton(master=left_frame,
+                                        command=lambda: self.photocopy_button_clicked(int(self.slider.get())),
+                                        text="Photocopy")
         photocopy_button.grid(row=2, column=1, padx="10px", pady=(15, 0))
 
         erosion_button = tk.CTkButton(master=left_frame, command=self.button_callback, text="Erosion")
@@ -65,9 +66,29 @@ class App(tk.CTk):
         grayscale_button = tk.CTkButton(master=left_frame, command=self.grayscale_button_clicked, text="Grayscale")
         grayscale_button.grid(row=4, column=0, padx="10px", pady=(15, 0))
 
+        mirror_button = tk.CTkButton(master=left_frame, command=lambda: self.mirror_button_clicked(), text="Mirror")
+        mirror_button.grid(row=4, column=1, padx="10px", pady=(15, 0))
 
+        negative_button = tk.CTkButton(master=left_frame, command=lambda: self.negative_button_clicked(), text="Negative")
+        negative_button.grid(row=5, column=0, padx="10px", pady=(15, 0))
 
+    def mirror_button_clicked(self):
+        img_data = np.array(self.current_image)
+        img = Image.fromarray(np.uint8(np.flip(img_data, axis=1)))
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
 
+    def negative_button_clicked(self):
+        img_data = np.array(self.current_image)
+        max_val = np.max(img_data)
+        img_data[:, :, :] = max_val - img_data[:, :, :]
+        img = Image.fromarray(np.uint8(img_data))
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
 
     def double2img(self, img_arr):
         return np.round(img_arr * 255)
@@ -83,7 +104,8 @@ class App(tk.CTk):
         # threshold = 100.0 / 255.0
         grayscale_arr[grayscale_arr > threshold] = 1.0
         grayscale_arr[grayscale_arr <= threshold] = (grayscale_arr[grayscale_arr <= threshold] *
-                                                     (threshold - grayscale_arr[grayscale_arr <= threshold])) / (threshold * threshold)
+                                                     (threshold - grayscale_arr[grayscale_arr <= threshold])) / (
+                                                                threshold * threshold)
         grayscale_arr = self.double2img(grayscale_arr)
         img = Image.fromarray(grayscale_arr)
         img.thumbnail((700, 550))
