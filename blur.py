@@ -1,16 +1,17 @@
 import customtkinter as tk
-# import tkinter as tinker
 from tkinter import filedialog
-from tkinter.filedialog import askopenfile
 
+import math
 from cv2 import cv2
 import numpy as np
 from PIL import Image, ImageTk
-import numpy
-
 
 def double2img(img_arr):
     return np.round(img_arr * 255)
+
+
+def img2double(img_arr):
+    return img_arr / 255.0
 
 
 class App(tk.CTk):
@@ -18,8 +19,8 @@ class App(tk.CTk):
     def __init__(self):
         super().__init__()
 
+        self.original_image = None
         self.current_image = None
-        self.grayscale_image = None
         self.title("PicEditor")
         # self.geometry("+%d+%d" % (self.window_start_x, self.window_start_y))
         self.minsize(1000, 600)
@@ -40,7 +41,7 @@ class App(tk.CTk):
         slider_frame = tk.CTkFrame(master=left_frame)
         slider_frame.pack(side="bottom", pady="20px")
 
-        self.slider = tk.CTkSlider(master=slider_frame, from_=1, to=10, command=self.slider_event, number_of_steps=10)
+        self.slider = tk.CTkSlider(master=slider_frame, from_=1, to=250, command=self.slider_event, number_of_steps=250)
         self.slider.set(1)
         self.slider.pack(anchor="center", side="bottom")
 
@@ -83,17 +84,10 @@ class App(tk.CTk):
                                        text="Negative")
         negative_button.grid(row=5, column=0, padx="10px", pady=(15, 0))
 
-    def mirror_button_clicked(self):
-        img_data = np.array(self.current_image)
-        img = Image.fromarray(np.uint8(np.flip(img_data, axis=1)))
-        img.thumbnail((700, 550))
-        show_img = ImageTk.PhotoImage(img)
-        self.img_label.configure(image=show_img)
-        self.img_label.image = show_img
-
     def blurr_button_clicked(self, scale):
         print("scale:", scale)
-        n = 2*scale+1
+        scale = math.ceil(scale)
+        n = 2 * scale + 1
 
         if self.PrevOperation == "Blur":
             img_data = np.array(self.IPrevImage)
@@ -115,38 +109,78 @@ class App(tk.CTk):
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 
-    def negative_button_clicked(self):
+    def mirror_button_clicked(self):
+        self.IPrevImage = self.current_image
+        self.PrevOperation = 'Mirror'
         img_data = np.array(self.current_image)
-        max_val = np.max(img_data)
-        img_data[:, :, :] = max_val - img_data[:, :, :]
-        img = Image.fromarray(np.uint8(img_data))
+        self.current_image = Image.fromarray(np.uint8(np.flip(img_data, axis=1)))
+        img = self.current_image.copy()
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 
-    def img2double(self, img_arr):
-        return img_arr / 255.0
+    def negative_button_clicked(self):
+        self.IPrevImage = self.current_image
+        self.PrevOperation = 'Neg'
+
+        img_data = np.array(self.current_image)
+        if img_data.ndim == 3:
+            max_val = np.max(img_data)
+            img_data[:, :, :] = max_val - img_data[:, :, :]
+            self.current_image = Image.fromarray(np.uint8(img_data))
+            img = self.current_image.copy()
+            img.thumbnail((700, 550))
+            show_img = ImageTk.PhotoImage(img)
+            self.img_label.configure(image=show_img)
+            self.img_label.image = show_img
+        else:
+            img_data = 255 - img_data
+            self.current_image = Image.fromarray(np.uint8(img_data))
+            img = self.current_image.copy()
+            img.thumbnail((700, 550))
+            show_img = ImageTk.PhotoImage(img)
+            self.img_label.configure(image=show_img)
+            self.img_label.image = show_img
 
     def photocopy_button_clicked(self, threshold):
-        if self.grayscale_image is None:
-            return
-        grayscale_arr = self.img2double(np.array(self.grayscale_image))
+        self.IPrevImage = self.current_image
+
+        if self.PrevOperation == "Photocopy":
+            img_data = np.array(self.IPrevImage)
+        else:
+            img_data = np.array(self.current_image)
+
+        # img_data = np.array(self.current_image)
+        if img_data.ndim == 3:
+            self.grayscale_button_clicked()
+        # img_data = np.array(self.current_image)
+        grayscale_arr = img2double(img_data)
         threshold /= 255.0
-        # threshold = 100.0 / 255.0
         grayscale_arr[grayscale_arr > threshold] = 1.0
         grayscale_arr[grayscale_arr <= threshold] = (grayscale_arr[grayscale_arr <= threshold] *
                                                      (threshold - grayscale_arr[grayscale_arr <= threshold])) / (
                                                             threshold * threshold)
         grayscale_arr = double2img(grayscale_arr)
-        img = Image.fromarray(grayscale_arr)
+        print(grayscale_arr.shape)
+        self.PrevOperation = "Photocopy"
+        self.IPrevImage = img_data
+        self.current_image = Image.fromarray(grayscale_arr.astype(np.uint8))
+        img = self.current_image.copy()
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 
     def grayscale_button_clicked(self):
-        img = self.grayscale_image.copy()
+        self.PrevOperation = "Gray"
+        rgb_img_data = np.array(self.current_image)
+        if rgb_img_data.ndim == 2:
+            return
+        r, g, b = rgb_img_data[:, :, 0], rgb_img_data[:, :, 1], rgb_img_data[:, :, 2]
+        grayscale_arr = 0.2989 * r + 0.5870 * g + 0.1140 * b
+        self.current_image = Image.fromarray(grayscale_arr)
+        img = self.current_image.copy()
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
@@ -154,7 +188,9 @@ class App(tk.CTk):
 
     def slider_event(self, _event=None):
         self.slider_value_label.configure(text=int(self.slider.get()))
+        self.slider_value_label.setvar()
         print(self.slider.get())
+
 
     def button_callback(self):
         print("Button Clicked")
@@ -163,15 +199,13 @@ class App(tk.CTk):
         f_types = [('Jpg Files', '*.jpg')]
         filename = filedialog.askopenfilename(filetypes=f_types)
         self.current_image = Image.open(filename)
+        self.original_image = Image.open(filename)
         self.IPrevImage = self.current_image
         self.PrevOperation = 'None'
+
         img = self.current_image.copy()
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
-        rgb_img_data = np.array(self.current_image)
-        r, g, b = rgb_img_data[:, :, 0], rgb_img_data[:, :, 1], rgb_img_data[:, :, 2]
-        grayscale_arr = 0.2989 * r + 0.5870 * g + 0.1140 * b
-        self.grayscale_image = Image.fromarray(grayscale_arr)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
 

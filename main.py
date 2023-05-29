@@ -5,8 +5,8 @@ import math
 from cv2 import cv2
 import numpy as np
 from PIL import Image, ImageTk
-import numpy
-
+import torch
+import torch.nn as nn
 
 def double2img(img_arr):
     return np.round(img_arr * 255)
@@ -14,6 +14,13 @@ def double2img(img_arr):
 
 def img2double(img_arr):
     return img_arr / 255.0
+
+
+def mat2gray(image):
+    min_val = np.min(image)
+    max_val = np.max(image)
+    normalized_image = ((image - min_val)*255) / (max_val - min_val)
+    return normalized_image
 
 
 class App(tk.CTk):
@@ -30,6 +37,7 @@ class App(tk.CTk):
         self.resizable(False, False)
         self.IPrevImage = self.current_image
         self.PrevOperation = 'None'
+        self.vigneT = 0
 
         left_frame = tk.CTkFrame(self, width=250, height=600)
         left_frame.pack(side="left", fill="both")
@@ -86,8 +94,17 @@ class App(tk.CTk):
                                        text="Negative")
         negative_button.grid(row=5, column=0, padx="10px", pady=(15, 0))
 
+        vignetting_button = tk.CTkButton(master=left_frame, command=lambda: self.vignetting_button_clicked(), text='Vignetting')
+        vignetting_button.grid(row=5, column=1, padx='10px', pady=(15, 0))
+
+        sepia_button = tk.CTkButton(master=left_frame, command=lambda: self.sepia_button_clicked(),
+                                       text="Sepia")
+        sepia_button.grid(row=6, column=0, padx="10px", pady=(15, 0))
+
+        night_vision_button = tk.CTkButton(master=left_frame, command=lambda: self.night_vision_button_clicked(), text='Night Vision')
+        night_vision_button.grid(row=6, column=1, padx='10px', pady=(15, 0))
+
     def blurr_button_clicked(self, scale):
-        print("scale:", scale)
         scale = math.ceil(scale)
         n = 2 * scale + 1
 
@@ -105,6 +122,89 @@ class App(tk.CTk):
         self.PrevOperation = "Blur"
         self.IPrevImage = img_data
 
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+
+    def sepia_button_clicked(self):
+        self.PrevOperation == "Sepia"
+        img_data = np.array(self.current_image)
+        img = img_data
+
+        if img_data.ndim == 2:
+            return
+
+        if img_data.ndim ==3:
+            r, g, b = img_data[:, :, 0], img_data[:, :, 1], img_data[:, :, 2]
+            r1 = (0.393 * r + 0.769 * g + 0.189 * b)
+            g1 = (0.349 * r + 0.686 * g + 0.168 * b)
+            b1 = (0.272 * r + 0.534 * g + 0.131 * b)
+            r1[r1>255] = 255
+            g1[g1>255] = 255
+            b1[b1>255] = 255
+            img[:,:,0] = r1
+            img[:,:,1] = g1
+            img[:,:,2] = b1
+
+        img = Image.fromarray(img.astype(np.uint8))
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+
+    def vignetting_button_clicked(self):
+        self.IPrevImage = self.current_image
+        self.PrevOperation = 'Vignetting'
+
+        img_data = np.array(self.current_image)
+        n = len(img_data) # no of row
+        m = len(img_data[0]) # no of column
+        distM = np.ones(shape=(n, m))
+        an = math.floor(n/2)
+        am = math.floor(m/2)
+        scale = 1
+        D = math.sqrt(an**2 + am**2)
+        distM = np.fromfunction(lambda i, j: scale * np.sqrt((abs(j - am) ** 2) + (abs(i - an) ** 2)) / D,
+                                img_data.shape[:2])
+
+        finalD = 1 - distM
+
+        if img_data.ndim == 3:
+            finalD = np.dstack([finalD] * 3)
+
+        finalD = np.abs(finalD)
+        np.clip(finalD, 0, 255, out=finalD)
+        img = img_data * finalD
+
+        img = Image.fromarray(img.astype(np.uint8))
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+
+    def night_vision_button_clicked(self):
+        self.IPrevImage = self.current_image
+        self.PrevOperation = 'Night Vision'
+
+        img_data = np.array(self.current_image)
+        img = img_data
+        if img_data.ndim == 3:
+            g = img_data[:, :, 1]
+            r1 = g/2
+            b1 = 2*r1
+            g1 = 2*b1
+            r1[r1 > 255] = 255
+            g1[g1 > 255] = 255
+            b1[b1 > 255] = 255
+            img[:, :, 0] = r1
+            img[:, :, 1] = g1
+            img[:, :, 2] = b1
+
+        img = Image.fromarray(img.astype(np.uint8))
         self.current_image = img
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
@@ -202,6 +302,7 @@ class App(tk.CTk):
         self.original_image = Image.open(filename)
         self.IPrevImage = self.current_image
         self.PrevOperation = 'None'
+        self.vigneT = 0
 
         img = self.current_image.copy()
         img.thumbnail((700, 550))
