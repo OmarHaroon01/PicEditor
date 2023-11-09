@@ -19,5 +19,4 @@ Welcome to PicEditor
 
 You can also compare your editted image with the original one. You can also save the image.
 
-## Getting Started
 
