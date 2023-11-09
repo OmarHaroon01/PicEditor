@@ -1,3 +1,5 @@
+import os
+
 import customtkinter as tk
 from tkinter import filedialog
 from scipy import ndimage
@@ -128,6 +130,7 @@ class App(tk.CTk):
     def __init__(self):
         super().__init__()
 
+        self.file_name = ""
         self.original_image = None
         self.current_image = None
         self.title("PicEditor")
@@ -180,10 +183,10 @@ class App(tk.CTk):
                                         text="Photocopy")
         photocopy_button.grid(row=2, column=1, padx="10px", pady=(15, 0))
 
-        erosion_button = tk.CTkButton(master=left_frame, command=self.button_callback, text="Erosion")
+        erosion_button = tk.CTkButton(master=left_frame, command=self.erosion_button_clicked, text="Erosion")
         erosion_button.grid(row=3, column=0, padx="10px", pady=(15, 0))
 
-        dilation_button = tk.CTkButton(master=left_frame, command=self.button_callback, text="Dilation")
+        dilation_button = tk.CTkButton(master=left_frame, command=self.dilation_button_clicked, text="Dilation")
         dilation_button.grid(row=3, column=1, padx="10px", pady=(15, 0))
 
         grayscale_button = tk.CTkButton(master=left_frame, command=self.grayscale_button_clicked, text="Grayscale")
@@ -210,16 +213,44 @@ class App(tk.CTk):
         night_vision_button.grid(row=6, column=1, padx='10px', pady=(15, 0))
 
         hist_equal_button = tk.CTkButton(master=left_frame, command=lambda: self.hist_equal_button_clicked(),
-                                           text='Histogram Equalization')
+                                         text='Histogram Equalization')
         hist_equal_button.grid(row=7, column=0, padx='10px', pady=(15, 0))
 
-        posterize_button = tk.CTkButton(master=left_frame, command=lambda: self.posterize_button_clicked(round(float(self.slider.get()), 1)),
+        posterize_button = tk.CTkButton(master=left_frame, command=lambda: self.posterize_button_clicked(
+            round(float(self.slider.get()), 1)),
                                         text="Posterize")
         posterize_button.grid(row=7, column=1, padx="10px", pady=(15, 0))
 
         contrast_equal_button = tk.CTkButton(master=left_frame, command=lambda: self.contrast_button_clicked(),
-                                           text='Contrast Highlighting')
+                                             text='Contrast Highlighting')
         contrast_equal_button.grid(row=8, column=0, padx='10px', pady=(15, 0))
+
+        save_button = tk.CTkButton(master=left_frame, command=lambda: self.save_button_clicked(),
+                                             text='Save Button')
+        save_button.grid(row=10, column=0, padx='10px', pady=(60, 0))
+
+        compare_button = tk.CTkButton(master=left_frame, command=lambda: self.compare_button_clicked(),
+                                   text='Compare Image')
+        # compare_button.bind("<ButtonPress>", self.compare_button_clicked)
+        compare_button.bind("<ButtonRelease>", self.compare_button_released)
+        compare_button.grid(row=10, column=1, padx='10px', pady=(60, 0))
+
+    def compare_button_clicked(self):
+        img_data = np.array(self.original_image)
+        img = Image.fromarray(img_data)
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+
+    def compare_button_released(self, event):
+        img_data = np.array(self.current_image)
+        img = Image.fromarray(img_data)
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
 
     def hist_equal_button_clicked(self):
         if self.current_image is None:
@@ -227,7 +258,6 @@ class App(tk.CTk):
 
         if self.PrevOperation == "Hist Equalize":
             return
-
 
         self.grayscale_button_clicked()
 
@@ -342,7 +372,7 @@ class App(tk.CTk):
 
     def sketch_button_clicked(self):
         img_data = np.array(self.current_image)
-        self.PrevOperation == "Sketch"
+        self.PrevOperation = "Sketch"
         self.IPrevImage = self.current_image
 
         if img_data.ndim <= 2:
@@ -354,7 +384,6 @@ class App(tk.CTk):
             gradient_magnitude = np.hypot(gradient_x, gradient_y)
             gradient_magnitude = gradient_magnitude / gradient_magnitude.max() * 255
             gradient_magnitude = 255 - gradient_magnitude
-
             img = gradient_magnitude
 
         img = Image.fromarray(img.astype(np.uint8))
@@ -366,7 +395,7 @@ class App(tk.CTk):
 
     def contrast_button_clicked(self):
         self.IPrevImage = self.current_image
-        self.PrevOperation == "Contrast"
+        self.PrevOperation = "Contrast"
         img_data = np.array(self.current_image)
         self.IPrevImage = self.current_image
         n = np.min(img_data)
@@ -584,11 +613,8 @@ class App(tk.CTk):
     def slider_event(self, _event=None):
         self.slider_value_label.configure(text=round(float(self.slider.get()), 1))
 
-    def button_callback(self):
-        print("Button Clicked")
-
     def upload_button_clicked(self):
-        f_types = [('Jpg Files', '*.jpg')]
+        f_types = [("Image files", "*.png;*.jpg;*.jpeg;*.tif"), ("All files", "*.*")]
         filename = filedialog.askopenfilename(filetypes=f_types)
         if filename == "":
             return
@@ -597,12 +623,50 @@ class App(tk.CTk):
         self.IPrevImage = self.current_image
         self.PrevOperation = 'None'
         self.vigneT = 0
-
+        path_components = filename.split("/")
+        file_with_extension = path_components[-1]
+        print(os.path.splitext(file_with_extension)[0])
+        self.file_name = os.path.splitext(file_with_extension)[0]
         img = self.current_image.copy()
         img.thumbnail((700, 550))
         show_img = ImageTk.PhotoImage(img)
         self.img_label.configure(image=show_img)
         self.img_label.image = show_img
+
+    def save_button_clicked(self):
+        filetypes = (("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*"))
+        destination = filedialog.asksaveasfilename(title="Save Image", filetypes=filetypes,
+                                                   defaultextension=".png", initialfile=self.file_name + "_updated.png")
+        if destination:
+            self.current_image.save(destination)
+
+    def erosion_button_clicked(self):
+        if self.PrevOperation == "EROSION":
+            return
+        kernel = np.ones((5, 5), np.uint8)
+        img_data = np.array(self.current_image)
+        img = cv2.erode(img_data, kernel, iterations=1)
+        img = Image.fromarray(img)
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+        self.PrevOperation = "EROSION"
+
+    def dilation_button_clicked(self):
+        if self.PrevOperation == "DILATION":
+            return
+        kernel = np.ones((5, 5), np.uint8)
+        img_data = np.array(self.current_image)
+        img = cv2.dilate(img_data, kernel, iterations=1)
+        img = Image.fromarray(img)
+        self.current_image = img
+        img.thumbnail((700, 550))
+        show_img = ImageTk.PhotoImage(img)
+        self.img_label.configure(image=show_img)
+        self.img_label.image = show_img
+        self.PrevOperation = "DILATION"
 
 
 if __name__ == "__main__":
