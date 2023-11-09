@@ -1,8 +1,8 @@
 # PicEditor
 Welcome to PicEditor
 ## Filters Available
-*Blur
-*Sketch
+-Blur
+-Sketch
 *Edge Detection
 *Photocopy
 *Erosion
