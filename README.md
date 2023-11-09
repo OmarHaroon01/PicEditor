@@ -17,6 +17,6 @@ Welcome to PicEditor
 * Posterize
 * Contrast Highlighting
 
-You can also compare your editted image with the original one. You can also save the image.
+You can also compare your edited image with the original one. You can also save the image.
 
 
